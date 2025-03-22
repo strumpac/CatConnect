@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter/services.dart'; // Per gestire le immagini come byte
+import 'package:http_parser/http_parser.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function(bool) onLogin;
@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  
+
   // Aggiunta per la gestione dell'immagine
   XFile? _imageFile;
   final ImagePicker _picker = ImagePicker();
@@ -39,18 +39,44 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _uploadImageToCloudinary() async {
     if (_imageFile == null) return null;
 
-    final cloudinaryUrl="cloudinary://786993869258579:YY_QEG_u3Mjsoac4QQuVIot5PJw@dzyi6fulj"; // Sostituire con il tuo URL di Cloudinary
-    final uploadRequest = http.MultipartRequest('POST', Uri.parse(cloudinaryUrl));
-    uploadRequest.fields['upload_preset'] = 'YOUR_UPLOAD_PRESET'; // Sostituire con il tuo preset di Cloudinary
-    uploadRequest.files.add(await http.MultipartFile.fromPath('file', _imageFile!.path));
+    final cloudinaryUrl =
+        "https://api.cloudinary.com/v1_1/dzyi6fulj/image/upload"; // Corretto URL di Cloudinary
 
-    final response = await uploadRequest.send();
-    if (response.statusCode == 200) {
+    final request = http.MultipartRequest('POST', Uri.parse(cloudinaryUrl));
+
+    // Aggiungi il preset di upload
+    request.fields['upload_preset'] =
+        'preset'; // Sostituisci con il tuo preset
+
+    // Aggiungi il file immagine
+    final mimeType =
+        'image/jpeg'; // Puoi migliorare questa parte per determinare automaticamente il MIME
+    final imageStream = http.ByteStream(_imageFile!.openRead());
+    final length = await _imageFile!.length();
+    final multipartFile = http.MultipartFile(
+      'file',
+      imageStream,
+      length,
+      filename: _imageFile!.path.split('/').last,
+      contentType: MediaType.parse(mimeType),
+    );
+
+    request.files.add(multipartFile);
+
+    try {
+      final response = await request.send();
       final respStr = await response.stream.bytesToString();
-      final data = json.decode(respStr);
-      return data['secure_url']; // URL dell'immagine caricata
-    } else {
-      print('Errore nel caricamento dell\'immagine');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(respStr);
+        return data['secure_url']; // URL dell'immagine caricata
+      } else {
+        print('Errore nel caricamento dell\'immagine: ${response.statusCode}');
+        print('Risposta: $respStr');
+        return null;
+      }
+    } catch (e) {
+      print('Errore nell\'upload dell\'immagine: $e');
       return null;
     }
   }
@@ -60,7 +86,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    String? imageUrl = await _uploadImageToCloudinary(); // Carica immagine su Cloudinary
+    String? imageUrl =
+        await _uploadImageToCloudinary(); // Carica immagine su Cloudinary
 
     final response = await http.post(
       Uri.parse('https://catconnect-7yg6.onrender.com/api/auth/register'),
@@ -184,8 +211,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: Colors.black),
                       ),
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-                        textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+                        textStyle: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
               TextButton(

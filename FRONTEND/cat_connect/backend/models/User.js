@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
   },
   profileImageUrl: {
     type: String, // URL dell'immagine
-    required: true
+    required: false
   }
 });
 
