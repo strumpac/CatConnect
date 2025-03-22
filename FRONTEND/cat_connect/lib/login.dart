@@ -37,80 +37,74 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Funzione per inviare l'immagine a Cloudinary
   Future<String?> _uploadImageToCloudinary() async {
-    if (_imageFile == null) return null;
+  if (_imageFile == null) return null;
 
-    final cloudinaryUrl =
-        "https://api.cloudinary.com/v1_1/dzyi6fulj/image/upload"; // Corretto URL di Cloudinary
+  final cloudinaryUrl = "https://api.cloudinary.com/v1_1/dzyi6fulj/image/upload";
 
-    final request = http.MultipartRequest('POST', Uri.parse(cloudinaryUrl));
+  final request = http.MultipartRequest('POST', Uri.parse(cloudinaryUrl));
 
-    // Aggiungi il preset di upload
-    request.fields['upload_preset'] =
-        'preset'; // Sostituisci con il tuo preset
+  request.fields['upload_preset'] = 'preset';
 
-    // Aggiungi il file immagine
-    final mimeType =
-        'image/jpeg'; // Puoi migliorare questa parte per determinare automaticamente il MIME
-    final imageStream = http.ByteStream(_imageFile!.openRead());
-    final length = await _imageFile!.length();
-    final multipartFile = http.MultipartFile(
-      'file',
-      imageStream,
-      length,
-      filename: _imageFile!.path.split('/').last,
-      contentType: MediaType.parse(mimeType),
-    );
+  final mimeType = 'image/jpeg';
+  final imageStream = http.ByteStream(_imageFile!.openRead());
+  final length = await _imageFile!.length();
+  final multipartFile = http.MultipartFile(
+    'profileImage', // Modifica qui
+    imageStream,
+    length,
+    filename: _imageFile!.path.split('/').last,
+    contentType: MediaType.parse(mimeType),
+  );
 
-    request.files.add(multipartFile);
+  request.files.add(multipartFile);
 
-    try {
-      final response = await request.send();
-      final respStr = await response.stream.bytesToString();
+  try {
+    final response = await request.send();
+    final respStr = await response.stream.bytesToString();
 
-      if (response.statusCode == 200) {
-        final data = json.decode(respStr);
-        return data['secure_url']; // URL dell'immagine caricata
-      } else {
-        print('Errore nel caricamento dell\'immagine: ${response.statusCode}');
-        print('Risposta: $respStr');
-        return null;
-      }
-    } catch (e) {
-      print('Errore nell\'upload dell\'immagine: $e');
+    if (response.statusCode == 200) {
+      final data = json.decode(respStr);
+      return data['secure_url'];
+    } else {
+      print('Errore nel caricamento dell\'immagine: ${response.statusCode}');
+      print('Risposta: $respStr');
       return null;
     }
+  } catch (e) {
+    print('Errore nell\'upload dell\'immagine: $e');
+    return null;
   }
+}
 
-  Future<void> _register() async {
-    setState(() {
-      _isLoading = true;
-    });
+Future<void> _register() async {
+  setState(() {
+    _isLoading = true;
+  });
 
-    String? imageUrl =
-        await _uploadImageToCloudinary(); // Carica immagine su Cloudinary
+  //String? imageUrl = await _uploadImageToCloudinary(); // Carica immagine su Cloudinary. Inutile ora
 
-    final response = await http.post(
-      Uri.parse('https://catconnect-7yg6.onrender.com/api/auth/register'),
-      body: json.encode({
-        'username': _usernameController.text,
-        'email': _emailController.text,
-        'password': _passwordController.text,
-        'image_url': imageUrl, // Aggiungi l'URL dell'immagine
-      }),
-      headers: {'Content-Type': 'application/json'},
-    );
+  final response = await http.post(
+    Uri.parse('https://catconnect-7yg6.onrender.com/api/auth/register'),
+    body: json.encode({
+      'username': _usernameController.text,
+      'email': _emailController.text,
+      'password': _passwordController.text,
+      //'image_url': imageUrl, // Aggiungi l'URL dell'immagine. Rimosso.
+    }),
+    headers: {'Content-Type': 'application/json'},
+  );
 
-    setState(() {
-      _isLoading = false;
-    });
+  setState(() {
+    _isLoading = false;
+  });
 
-    if (response.statusCode == 201) {
-      print('Registrazione avvenuta con successo');
-      _login(); // Effettua il login automatico
-    } else {
-      print('Errore nella registrazione');
-    }
+  if (response.statusCode == 201) {
+    print('Registrazione avvenuta con successo');
+    _login(); // Effettua il login automatico
+  } else {
+    print('Errore nella registrazione');
   }
+}
 
   Future<void> _login() async {
     setState(() {

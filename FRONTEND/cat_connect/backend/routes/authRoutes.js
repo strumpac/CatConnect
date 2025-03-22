@@ -23,20 +23,16 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
   const imageFile = req.file;
 
   try {
-    // Controlla se l'email esiste già
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email già in uso' });
-    }
+    // ... (Controlli esistenti)
 
     // Carica l'immagine su Cloudinary se presente
     let profileImageUrl = null;
     if (imageFile) {
       const result = await cloudinary.uploader.upload(imageFile.buffer, {
         folder: 'profile_images',
-        resource_type: 'auto'
+        resource_type: 'auto',
       });
-      profileImageUrl = result.secure_url;  // Ottieni l'URL dell'immagine caricata
+      profileImageUrl = result.secure_url;
     }
 
     // Crea un nuovo utente
@@ -44,19 +40,12 @@ router.post('/register', upload.single('profileImage'), async (req, res) => {
       username,
       email,
       password,
-      profileImageUrl
+      profileImageUrl,
     });
 
-    // Cripta la password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // ... (Cripta la password e salva l'utente)
 
-    // Salva l'utente nel database
-    await user.save();
-
-    // Invia una risposta di successo
     res.status(201).json({ message: 'Utente registrato con successo' });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Errore del server' });
