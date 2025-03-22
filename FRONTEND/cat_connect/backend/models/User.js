@@ -1,25 +1,29 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');  // Per criptare la password
+const bcrypt = require('bcryptjs');
 
-// Schema per l'utente
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  username: {
+    type: String,
+    required: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  profileImageUrl: {
+    type: String, // URL dell'immagine
+    required: true
+  }
 });
 
-// Pre-save middleware per criptare la password prima di salvarla nel DB
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
-
-// Metodo per verificare la password
-userSchema.methods.comparePassword = function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+// Metodo per confrontare la password (bcrypt)
+userSchema.methods.comparePassword = function (password) {
+  return bcrypt.compare(password, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

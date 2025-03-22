@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/services.dart'; // Per gestire le immagini come byte
 
 class LoginScreen extends StatefulWidget {
   final Function(bool) onLogin;
@@ -13,46 +16,97 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isRegistering = false;
-
+  bool _isLoading = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
+  
+  // Aggiunta per la gestione dell'immagine
+  XFile? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
-  Future<void> _login() async {
-    final response = await http.post(
-      Uri.parse('http://192.168.1.239:5000/api/auth/login'),  // Usa l'URL del tuo backend
-      body: json.encode({
-        'email': _emailController.text,
-        'password': _passwordController.text,
-      }),
-      headers: {'Content-Type': 'application/json'},
-    );
+  // Funzione per caricare l'immagine
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = pickedFile;
+      });
+    }
+  }
 
+  // Funzione per inviare l'immagine a Cloudinary
+  Future<String?> _uploadImageToCloudinary() async {
+    if (_imageFile == null) return null;
+
+    final cloudinaryUrl="cloudinary://786993869258579:YY_QEG_u3Mjsoac4QQuVIot5PJw@dzyi6fulj"; // Sostituire con il tuo URL di Cloudinary
+    final uploadRequest = http.MultipartRequest('POST', Uri.parse(cloudinaryUrl));
+    uploadRequest.fields['upload_preset'] = 'YOUR_UPLOAD_PRESET'; // Sostituire con il tuo preset di Cloudinary
+    uploadRequest.files.add(await http.MultipartFile.fromPath('file', _imageFile!.path));
+
+    final response = await uploadRequest.send();
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      // Usa il token ricevuto per gestire l'autenticazione
-      widget.onLogin(true);
+      final respStr = await response.stream.bytesToString();
+      final data = json.decode(respStr);
+      return data['secure_url']; // URL dell'immagine caricata
     } else {
-      print('Errore nel login');
+      print('Errore nel caricamento dell\'immagine');
+      return null;
     }
   }
 
   Future<void> _register() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    String? imageUrl = await _uploadImageToCloudinary(); // Carica immagine su Cloudinary
+
     final response = await http.post(
-      Uri.parse('http://192.168.1.239:5000/api/auth/register'),  // Usa l'URL del tuo backend
+      Uri.parse('https://catconnect-7yg6.onrender.com/api/auth/register'),
       body: json.encode({
         'username': _usernameController.text,
+        'email': _emailController.text,
+        'password': _passwordController.text,
+        'image_url': imageUrl, // Aggiungi l'URL dell'immagine
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (response.statusCode == 201) {
+      print('Registrazione avvenuta con successo');
+      _login(); // Effettua il login automatico
+    } else {
+      print('Errore nella registrazione');
+    }
+  }
+
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final response = await http.post(
+      Uri.parse('https://catconnect-7yg6.onrender.com/api/auth/login'),
+      body: json.encode({
         'email': _emailController.text,
         'password': _passwordController.text,
       }),
       headers: {'Content-Type': 'application/json'},
     );
 
-    if (response.statusCode == 201) {
-      print('Registrazione avvenuta con successo');
-      _login();  // Dopo la registrazione, prova a fare login automaticamente
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (response.statusCode == 200) {
+      widget.onLogin(true);
     } else {
-      print('Errore nella registrazione');
+      print('Errore nel login');
     }
   }
 
@@ -76,9 +130,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Username',
-                    labelStyle: TextStyle(color: Colors.black),  // Cambia il colore del label
+                    labelStyle: TextStyle(color: Colors.black),
                     focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blue),  // Colore della borderline quando selezionata
+                      borderSide: BorderSide(color: Colors.blue),
                     ),
                   ),
                 ),
@@ -86,9 +140,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Email',
-                  labelStyle: TextStyle(color: Colors.black),  // Cambia il colore del label
+                  labelStyle: TextStyle(color: Colors.black),
                   focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue),  // Colore della borderline quando selezionata
+                    borderSide: BorderSide(color: Colors.blue),
                   ),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -97,22 +151,43 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  labelStyle: TextStyle(color: Colors.black),  // Cambia il colore del label
+                  labelStyle: TextStyle(color: Colors.black),
                   focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.blue),  // Colore della borderline quando selezionata
+                    borderSide: BorderSide(color: Colors.blue),
                   ),
                 ),
                 obscureText: true,
               ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isRegistering ? _register : _login,
-                child: Text(_isRegistering ? 'Registrati' : 'Accedi'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-                  textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              if (_isRegistering)
+                Column(
+                  children: [
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _pickImage,
+                      child: Text('Carica un\'immagine'),
+                    ),
+                    if (_imageFile != null)
+                      Image.file(
+                        File(_imageFile!.path),
+                        width: 100,
+                        height: 100,
+                      ),
+                  ],
                 ),
-              ),
+              SizedBox(height: 20),
+              _isLoading
+                  ? CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: _isRegistering ? _register : _login,
+                      child: Text(
+                        _isRegistering ? 'Registrati' : 'Accedi',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+                        textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
               TextButton(
                 onPressed: () {
                   setState(() {
