@@ -1,18 +1,12 @@
 const mongoose = require('mongoose');
 
-// Schema per il post
+// Definisco lo schema per il post
 const postSchema = new mongoose.Schema({
     imageUrl: { type: String, required: true },
     description: { type: String, required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    comments: [
-        {
-            user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-            text: { type: String, required: true },
-            createdAt: { type: Date, default: Date.now }
-        }
-    ],
+    comments:[{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
     breed : {type: String}
 });
 

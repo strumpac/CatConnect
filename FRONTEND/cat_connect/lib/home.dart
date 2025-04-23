@@ -113,6 +113,52 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+Future<void> viewComments(String postId) async {
+  try {
+    final response = await http.post(
+      Uri.parse('http://10.1.0.13:5000/api/auth/getAllComments/$postId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> comments = json.decode(response.body);
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text("Commenti"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: comments.length,
+              itemBuilder: (context, index) {
+                final comment = comments[index];
+                return ListTile(
+                  leading: Icon(Icons.comment),
+                  title: Text(comment['text'] ?? 'Nessun testo'),
+                  subtitle: Text('Autore: ${comment['author'] ?? 'Sconosciuto'}'),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Chiudi"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      print("Errore nel caricamento dei commenti: ${response.statusCode}");
+    }
+  } catch (e) {
+    print("Errore di rete: $e");
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -190,9 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             icon: Icon(Icons.comment,
                                                 size: 28,
                                                 color: Colors.black54),
-                                            onPressed: () {
-                                              // commenti futuri
-                                            },
+                                            onPressed: () =>
+                                            viewComments(post['id']),
                                           ),
                                         ],
                                       ),

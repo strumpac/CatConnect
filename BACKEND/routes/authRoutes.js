@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Comment = require('../models/Comment')
 const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
 
@@ -304,6 +305,19 @@ router.post('/toggleLike/:postId', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Errore nel mettere/togliere il like' });
+  }
+});
+
+router.post('/getAllComments/:postId', async (req, res) => {
+  const { postId } = req.params;
+
+  try {
+    const post = await Post.findById(postId);
+    if(!post) return res.status(404).json({message: 'Post non trovato'});
+
+    res.status(200).json(post.comments);
+  }catch(error){
+    res.status(500);
   }
 });
 
